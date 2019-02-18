@@ -512,7 +512,7 @@ ruleNextCycle :: Rule
 ruleNextCycle = Rule
   { name = "next <cycle>"
   , pattern =
-    [ regex "n(ä)chste(r|n|s)?|kommende(r|n|s)?"
+    [ regex "n(ä)chste(r|n|s)?|kommende(r|n|s)?|folgende(n|m|s)?"
     , dimension TimeGrain
     ]
   , prod = \tokens -> case tokens of
@@ -575,7 +575,7 @@ ruleLastCycle :: Rule
 ruleLastCycle = Rule
   { name = "last <cycle>"
   , pattern =
-    [ regex "letzte(r|n|s)?|vergangene(r|n|s)?"
+    [ regex "letzte(r|n|s)?|vergangene(r|n|s)?|vorige(n|m|s)?"
     , dimension TimeGrain
     ]
   , prod = \tokens -> case tokens of

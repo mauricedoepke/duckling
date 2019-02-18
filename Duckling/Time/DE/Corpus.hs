@@ -147,9 +147,11 @@ allExamples = concat
              ]
   , examples (datetime (2013, 2, 4, 0, 0, 0) Week)
              [ "letzte woche"
+             , "vorige woche"
              ]
   , examples (datetime (2013, 2, 18, 0, 0, 0) Week)
              [ "nächste woche"
+             , "folgende woche"
              ]
   , examples (datetime (2013, 1, 0, 0, 0, 0) Month)
              [ "letzten monat"
@@ -171,12 +173,14 @@ allExamples = concat
              ]
   , examples (datetime (2012, 0, 0, 0, 0, 0) Year)
              [ "letztes jahr"
+             , "voriges jahr"
              ]
   , examples (datetime (2013, 0, 0, 0, 0, 0) Year)
              [ "dieses jahr"
              ]
   , examples (datetime (2014, 0, 0, 0, 0, 0) Year)
              [ "nächstes jahr"
+             , "folgendes jahr"
              ]
   , examples (datetime (2013, 2, 10, 0, 0, 0) Day)
              [ "letzten sonntag"
@@ -537,6 +541,9 @@ allExamples = concat
              [ "nächsten 3 jahren"
              , "kommenden drei jahren"
              , "nächste drei jahre"
+             ]
+  , examples (datetimeOpenInterval After (2014, 0, 0, 0, 0, 0) Year)
+             [ "ab nächstem Jahr"
              ]
   , examples (datetimeInterval ((2013, 7, 13, 0, 0, 0), (2013, 7, 16, 0, 0, 0)) Day)
              [ "13. - 15. Juli"
