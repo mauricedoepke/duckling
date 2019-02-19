@@ -148,6 +148,7 @@ allExamples = concat
   , examples (datetime (2013, 2, 4, 0, 0, 0) Week)
              [ "letzte woche"
              , "vorige woche"
+             , "vorherige woche"
              ]
   , examples (datetime (2013, 2, 18, 0, 0, 0) Week)
              [ "nächste woche"

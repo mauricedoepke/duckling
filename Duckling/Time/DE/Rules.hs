@@ -575,7 +575,7 @@ ruleLastCycle :: Rule
 ruleLastCycle = Rule
   { name = "last <cycle>"
   , pattern =
-    [ regex "letzte(r|n|s)?|vergangene(r|n|s)?|vorige(n|m|s)?"
+    [ regex "letzte(r|n|s)?|vergangene(r|n|s)?|vor(her)?ige(n|m|s)?"
     , dimension TimeGrain
     ]
   , prod = \tokens -> case tokens of
