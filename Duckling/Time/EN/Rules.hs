@@ -2,8 +2,7 @@
 -- All rights reserved.
 --
 -- This source code is licensed under the BSD-style license found in the
--- LICENSE file in the root directory of this source tree. An additional grant
--- of patent rights can be found in the PATENTS file in the same directory.
+-- LICENSE file in the root directory of this source tree.
 
 
 {-# LANGUAGE GADTs #-}
@@ -14,6 +13,7 @@
 
 module Duckling.Time.EN.Rules where
 
+import Control.Applicative ((<|>))
 import Data.Maybe
 import Data.Text (Text)
 import Prelude
@@ -322,6 +322,22 @@ ruleTheNthTimeAfterTime = Rule
       _ -> Nothing
   }
 
+ruleNDOWFromTime :: Rule
+ruleNDOWFromTime = Rule
+  { name = "<integer> <day-of-week> from <time>"
+  , pattern =
+    [ dimension Numeral
+    , Predicate isADayOfWeek
+    , regex "from"
+    , dimension Time
+    ]
+  , prod = \tokens -> case tokens of
+      (token:Token Time td1:_:Token Time td2:_) -> do
+        n <- getIntValue token
+        tt $ predNthAfter (n - 1) td1 td2
+      _ -> Nothing
+  }
+
 ruleYearLatent :: Rule
 ruleYearLatent = Rule
   { name = "year (latent)"
@@ -536,7 +552,21 @@ ruleHHMM = Rule
       (Token RegexMatch (GroupMatch (hh:mm:_)):_) -> do
         h <- parseInt hh
         m <- parseInt mm
-        tt $ hourMinute True h m
+        tt $ hourMinute (h < 12) h m
+      _ -> Nothing
+  }
+
+ruleHHhMM :: Rule
+ruleHHhMM = Rule
+  { name = "hhhmm"
+  , pattern =
+    [ regex "(?<!/)((?:[01]?\\d)|(?:2[0-3]))h(([0-5]\\d)|(?!\\d))"
+    ]
+  , prod = \case
+      (Token RegexMatch (GroupMatch (hh:mm:_)):_) -> do
+        h <- parseInt hh
+        m <- parseInt mm <|> Just 0
+        tt $ hourMinute False h m
       _ -> Nothing
   }
 
@@ -550,7 +580,7 @@ ruleHHMMLatent = Rule
       (Token RegexMatch (GroupMatch (hh:mm:_)):_) -> do
         h <- parseInt hh
         m <- parseInt mm
-        tt . mkLatent $ hourMinute True h m
+        tt . mkLatent $ hourMinute (h < 12) h m
       _ -> Nothing
   }
 
@@ -563,7 +593,7 @@ ruleHHMMSS = Rule
         h <- parseInt hh
         m <- parseInt mm
         s <- parseInt ss
-        tt $ hourMinuteSecond True h m s
+        tt $ hourMinuteSecond (h < 12) h m s
       _ -> Nothing
   }
 
@@ -752,7 +782,7 @@ ruleQuarterAfterHOD :: Rule
 ruleQuarterAfterHOD = Rule
   { name = "quarter after|past <hour-of-day>"
   , pattern =
-    [ regex "(a|one)? ?quarter (after|past)"
+    [ regex "(for )?((a|one) )?quarter (after|past)"
     , Predicate isAnHourOfDay
     ]
   , prod = \tokens -> case tokens of
@@ -964,15 +994,18 @@ ruleWeekend = Rule
 ruleWeek :: Rule
 ruleWeek = Rule
  { name = "week"
- , pattern = [regex "(all|rest of the) week"]
+ , pattern = [regex "(all|rest of the|the) week"]
  , prod = \case
      (Token RegexMatch (GroupMatch (match:_)):_) ->
        let end = cycleNthAfter True TG.Day (-2) $ cycleNth TG.Week 1
            period = case Text.toLower match of
                       "all" -> interval Closed (cycleNth TG.Week 0) end
                       "rest of the" -> interval Open today end
+                      "the" -> interval Open today end
                       _ -> Nothing
-       in Token Time <$> period
+       in case Text.toLower match of
+         "the" -> Token Time . mkLatent <$> period
+         _ -> Token Time <$> period
      _ -> Nothing
  }
 
@@ -1789,7 +1822,13 @@ ruleComputedHolidays = mkRuleHolidays
     , cycleNthAfter False TG.Day 49 easterSunday )
   , ( "Purim", "purim", purim )
   , ( "Raksha Bandhan", "raksha(\\s+)?bandhan|rakhi", rakshaBandhan )
+  , ( "Pargat Diwas", "pargat diwas|(maharishi )?valmiki jayanti", pargatDiwas )
+  , ( "Mahavir Jayanti", "(mahavir|mahaveer) (jayanti|janma kalyanak)"
+    , mahavirJayanti )
+  , ( "Maha Shivaratri", "maha(\\s+)?shivaratri", mahaShivaRatri)
   , ( "Dayananda Saraswati Jayanti","((maharishi|swami) )?(dayananda )?saraswati jayanti", saraswatiJayanti )
+  , ( "Karva Chauth", "karva\\s+chauth|karaka\\s+chaturthi", karvaChauth)
+  , ( "Krishna Janmashtami", "(krishna )?janmashtami|gokulashtami", krishnaJanmashtami )
   , ( "Shemini Atzeret", "shemini\\s+atzeret"
     , cycleNthAfter False TG.Day 21 roshHashana )
   , ( "Shrove Tuesday", "pancake (tues)?day|shrove tuesday|mardi gras"
@@ -1818,6 +1857,10 @@ ruleComputedHolidays = mkRuleHolidays
   , ( "Yom Kippur", "yom\\s+kippur", cycleNthAfter False TG.Day 9 roshHashana )
   , ( "Whit Monday", "(pentecost|whit)\\s+monday|monday of the holy spirit"
     , cycleNthAfter False TG.Day 50 easterSunday )
+  -- Rabindra Jayanti 25th day of the Bengali month of Boishakh
+  , ( "Rabindra Jayanti", "rabindra(nath)?\\s+jayanti", rabindraJayanti )
+  , ("Guru Ravidass Jayanti", "guru\\s+ravidass?\\s+(birthday|jayanti)"
+    , ravidassJayanti )
   ]
 
 ruleComputedHolidays' :: [Rule]
@@ -2215,7 +2258,7 @@ ruleDayInDuration = Rule
   , pattern =
     [ Predicate $ or . sequence [isGrainOfTime TG.Day, isGrainOfTime TG.Month]
     , regex "in"
-    , dimension Duration
+    , Predicate $ isDurationGreaterThan TG.Hour
     ]
   , prod = \tokens -> case tokens of
       (Token Time td:_:Token Duration dd:_) ->
@@ -2253,10 +2296,10 @@ ruleInNumeral = Rule
 
 ruleDurationAfterBeforeTime :: Rule
 ruleDurationAfterBeforeTime = Rule
-  { name = "<duration> after|before|from <time>"
+  { name = "<duration> after|before|from|past <time>"
   , pattern =
     [ dimension Duration
-    , regex "(after|before|from)"
+    , regex "(after|before|from|past)"
     , dimension Time
     ]
   , prod = \tokens -> case tokens of
@@ -2387,6 +2430,7 @@ rules =
   , ruleTheNthTimeOfTime
   , ruleNthTimeAfterTime
   , ruleTheNthTimeAfterTime
+  , ruleNDOWFromTime
   , ruleYearLatent
   , ruleYearADBC
   , ruleTheDOMNumeral
@@ -2403,6 +2447,7 @@ rules =
   , ruleAtTOD
   , ruleTODOClock
   , ruleHHMM
+  , ruleHHhMM
   , ruleHHMMLatent
   , ruleHHMMSS
   , ruleMilitaryAMPM
